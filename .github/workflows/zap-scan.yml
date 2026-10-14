@@ -1,0 +1,57 @@
+name: OWASP ZAP scans
+
+on:
+  push:
+  pull_request:
+  schedule:
+    - cron: '0 3 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  zap-scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - name: Check out Git repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 #v7.0.1
+
+      - name: Use Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 #v7.0.0
+        with:
+          node-version: 24
+
+      - name: Install application
+        run: npm install
+
+      - name: Start application
+        run: nohup npm start > /tmp/juice-shop.log 2>&1 &
+
+      - name: Wait for application
+        run: |
+          for attempt in {1..60}; do
+            if curl --fail --silent http://localhost:3000 >/dev/null; then
+              exit 0
+            fi
+            sleep 2
+          done
+          cat /tmp/juice-shop.log
+          exit 1
+
+      - name: ZAP full scan
+        uses: zaproxy/action-full-scan@v0.13.0
+        with:
+          target: http://localhost:3000
+          cmd_options: '-m 30'
+          artifact_name: zap-full-scan
+
+      - name: ZAP full API scan
+        uses: zaproxy/action-api-scan@v0.10.0
+        with:
+          target: swagger.yml
+          format: openapi
+          cmd_options: '-O localhost:3000'
+          artifact_name: zap-api-scan
