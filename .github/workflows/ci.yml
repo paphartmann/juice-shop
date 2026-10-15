@@ -21,6 +21,7 @@ env:
   NODE_DEFAULT_VERSION: 24
   NPM_VERSION: 11.19.1
   NODE_OPTIONS: "--max_old_space_size=4096"
+  NPM_CONFIG_LEGACY_PEER_DEPS: 'true'
   CYCLONEDX_NPM_VERSION: '^2.0.0||^3.0.0||^4.0.0'   # keep in sync with package.json
 jobs:
   lint:

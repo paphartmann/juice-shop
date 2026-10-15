@@ -7,6 +7,7 @@ env:
   CYCLONEDX_NPM_VERSION: '^2.0.0||^3.0.0||^4.0.0'   # keep in sync with package.json
   NPM_VERSION: 11.19.1
   TYPESCRIPT_VERSION: '^6.0.3'                      # keep in sync with package.json
+  NPM_CONFIG_LEGACY_PEER_DEPS: 'true'
 jobs:
   create-release:
     runs-on: ubuntu-latest

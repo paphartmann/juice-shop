@@ -11,6 +11,9 @@ permissions:
   contents: read
   issues: write
 
+env:
+  NPM_CONFIG_LEGACY_PEER_DEPS: 'true'
+
 jobs:
   zap-scan:
     runs-on: ubuntu-latest
@@ -47,6 +50,37 @@ jobs:
           target: http://localhost:3000
           cmd_options: '-m 30'
           artifact_name: zap-full-scan
+          allow_issue_writing: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
+
+      - name: Add Markdown report to ZAP issue
+        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd #v8.0.0
+        with:
+          script: |
+            const fs = require('node:fs')
+            const report = fs.readFileSync('report_md.md', 'utf8')
+            const title = 'ZAP Full Scan Report'
+            const { owner, repo } = context.repo
+            const issues = await github.paginate(github.rest.issues.listForRepo, {
+              owner,
+              repo,
+              state: 'all',
+              per_page: 100
+            })
+            let issue = issues.find(issue => !issue.pull_request && issue.title === title)
+            if (!issue) {
+              const response = await github.rest.issues.create({ owner, repo, title, body: 'Full ZAP scan reports are added as comments.' })
+              issue = response.data
+            }
+
+            const header = `## Full scan report (${context.runNumber})\n\n`
+            const maxCommentLength = 60000
+            const content = header + report
+            for (let offset = 0; offset < content.length; offset += maxCommentLength) {
+              const part = content.slice(offset, offset + maxCommentLength)
+              const suffix = offset + maxCommentLength < content.length ? `\n\n_Report continues in the next comment._` : ''
+              await github.rest.issues.createComment({ owner, repo, issue_number: issue.number, body: part + suffix })
+            }
 
       - name: ZAP full API scan
         uses: zaproxy/action-api-scan@v0.10.0

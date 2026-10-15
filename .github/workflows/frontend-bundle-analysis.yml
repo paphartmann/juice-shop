@@ -9,6 +9,7 @@ env:
   NODE_DEFAULT_VERSION: 24
   NPM_VERSION: 11.19.1
   NODE_OPTIONS: "--max_old_space_size=4096"
+  NPM_CONFIG_LEGACY_PEER_DEPS: 'true'
 
 jobs:
   bundle-analysis:
