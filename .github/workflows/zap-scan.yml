@@ -50,29 +50,37 @@ jobs:
           target: http://localhost:3000
           cmd_options: '-m 30'
           artifact_name: zap-full-scan
-          allow_issue_writing: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
+          allow_issue_writing: false
 
       - name: Set full scan issue body to report
         if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          issue=$(gh issue list --state all --search 'in:title "ZAP Full Scan Report"' --json number --jq '.[0].number')
-          if [ -n "$issue" ]; then gh issue edit "$issue" --body-file report_md.md; fi
+          issue=$(gh issue list --state all --limit 1000 --json number,title --jq '.[] | select(.title == "ZAP Full Scan Report") | .number' | head -n 1)
+          if [ -n "$issue" ]; then
+            gh issue edit "$issue" --body-file report_md.md
+          else
+            gh issue create --title "ZAP Full Scan Report" --body-file report_md.md
+          fi
 
       - name: ZAP full API scan
         uses: zaproxy/action-api-scan@v0.10.0
         with:
           target: swagger.yml
           format: openapi
-          cmd_options: '-O localhost:3000'
+          cmd_options: '-O http://localhost:3000'
           artifact_name: zap-api-scan
-          allow_issue_writing: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
+          allow_issue_writing: false
 
       - name: Set API scan issue body to report
         if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          issue=$(gh issue list --state all --search 'in:title "ZAP API Scan Report"' --json number --jq '.[0].number')
-          if [ -n "$issue" ]; then gh issue edit "$issue" --body-file report_md.md; fi
+          issue=$(gh issue list --state all --limit 1000 --json number,title --jq '.[] | select(.title == "ZAP API Scan Report") | .number' | head -n 1)
+          if [ -n "$issue" ]; then
+            gh issue edit "$issue" --body-file report_md.md
+          else
+            gh issue create --title "ZAP API Scan Report" --body-file report_md.md
+          fi
