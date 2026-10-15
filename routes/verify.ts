@@ -122,13 +122,22 @@ function jwtChallenge (challenge: Challenge, req: Request, algorithm: string, em
       return
     }
 
-    jwt.verify(token, security.publicKey, (err: jwt.VerifyErrors | null) => {
-      if (err === null) {
-        challengeUtils.solveIf(challenge, () => {
-          return hasAlgorithm(token, algorithm) && hasEmail(decoded as { data: { email: string } }, email)
-        })
+    let valid = false
+    try {
+      if (algorithm === 'RS256') {
+        jwt.verify(token, security.publicKey, { algorithms: ['RS256'] })
+        valid = true
+      } else {
+        valid = (jws.verify as (token: string, algorithm: string, secret: string) => boolean)(token, algorithm, security.publicKey)
       }
-    })
+    } catch {
+      valid = false
+    }
+    if (valid) {
+      challengeUtils.solveIf(challenge, () => {
+        return hasAlgorithm(token, algorithm) && hasEmail(decoded as { data: { email: string } }, email)
+      })
+    }
   }
 }
 

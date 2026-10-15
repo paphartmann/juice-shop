@@ -49,10 +49,35 @@ export const cutOffPoisonNullByte = (str: string) => {
   return str
 }
 
-export const isAuthorized = () => expressJwt(({ secret: publicKey }) as any)
-export const denyAll = () => expressJwt({ secret: '' + Math.random() } as any)
-export const authorize = (user = {}) => jwt.sign(user, privateKey, { expiresIn: '6h', algorithm: 'RS256' })
-export const verify = (token: string) => token ? (jws.verify as ((token: string, secret: string) => boolean))(token, publicKey) : false
+export const isAuthorized = () => {
+  const jwtMiddleware = expressJwt({ secret: publicKey, algorithms: ['RS256'] } as any)
+  return (req: Request, res: Response, next: NextFunction) => {
+    const token = utils.jwtFrom(req)
+    const decodedToken = token ? decode(token) : undefined
+    try {
+      const algorithm = token ? JSON.parse(Buffer.from(token.split('.')[0], 'base64').toString()).alg : undefined
+      if (token && decodedToken && ['HS256', 'none'].includes(algorithm) && verify(token) && (!decodedToken.exp || decodedToken.exp > Date.now() / 1000)) {
+        (req as Request & { user?: unknown }).user = decodedToken
+        next()
+        return
+      }
+    } catch {
+      // Let express-jwt return its standard invalid-token error.
+    }
+    jwtMiddleware(req, res, next)
+  }
+}
+export const denyAll = () => expressJwt({ secret: '' + Math.random(), algorithms: ['HS256'] } as any)
+export const authorize = (user = {}) => jwt.sign(user, privateKey, { expiresIn: '6h', algorithm: 'RS256', allowInsecureKeySizes: true } as any)
+export const verify = (token: string) => {
+  if (!token) return false
+  try {
+    const algorithm = JSON.parse(Buffer.from(token.split('.')[0], 'base64').toString()).alg
+    return (jws.verify as (token: string, algorithm: string, secret: string) => boolean)(token, algorithm, publicKey)
+  } catch {
+    return false
+  }
+}
 export const decode = (token: string) => { return jws.decode(token)?.payload }
 
 export const sanitizeHtml = (html: string) => sanitizeHtmlLib(html)
@@ -186,12 +211,11 @@ export const appendUserId = () => {
 export const updateAuthenticatedUsers = () => (req: Request, res: Response, next: NextFunction) => {
   const token = req.cookies.token || utils.jwtFrom(req)
   if (token && authenticatedUsers.get(token) === undefined) {
-    jwt.verify(token, publicKey, (err: Error | null, decoded: any) => {
-      if (err === null && decoded?.data !== undefined) {
-        authenticatedUsers.put(token, decoded)
-        res.cookie('token', token)
-      }
-    })
+    const decoded = decode(token)
+    if (verify(token) && decoded?.data !== undefined && (!decoded.exp || decoded.exp > Date.now() / 1000)) {
+      authenticatedUsers.put(token, decoded as ResponseWithUser)
+      res.cookie('token', token)
+    }
   }
   next()
 }
