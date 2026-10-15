@@ -255,9 +255,9 @@ jobs:
         with:
           install: false
           browser: ${{ matrix.browser }}
+          record: ${{ github.repository == 'juice-shop/juice-shop' }}
           start: npm start
           wait-on: http://localhost:3000
-          record: true
           group: ${{ matrix.browser }} @ ${{ matrix.os }}
         env:
           SOLUTIONS_WEBHOOK: ${{ secrets.E2E_SOLUTIONS_WEBHOOK }}
@@ -270,9 +270,9 @@ jobs:
         with:
           install: false
           browser: ${{ matrix.browser }}
+          record: ${{ github.repository == 'juice-shop/juice-shop' }}
           start: npm start
           wait-on: http://localhost:3000
-          record: true
           group: ${{ matrix.browser }} @ ${{ matrix.os }}
         env:
           CYPRESS_CACHE_FOLDER: /Users/runner/Library/Caches/Cypress
