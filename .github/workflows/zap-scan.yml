@@ -44,7 +44,7 @@ jobs:
           cat /tmp/juice-shop.log
           exit 1
 
-      - name: ZAP full scan
+      - name: ZAP baseline scan
         uses: zaproxy/action-baseline@v0.15.0
         with:
           target: http://localhost:3000
