@@ -52,17 +52,8 @@ jobs:
           artifact_name: zap-full-scan
           allow_issue_writing: false
 
-      - name: Set full scan issue body to report
-        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          issue=$(gh issue list --state all --limit 1000 --json number,title --jq '.[] | select(.title == "ZAP Full Scan Report") | .number' | head -n 1)
-          if [ -n "$issue" ]; then
-            gh issue edit "$issue" --body-file report_md.md
-          else
-            gh issue create --title "ZAP Full Scan Report" --body-file report_md.md
-          fi
+      - name: Preserve full scan report
+        run: cp report_md.md zap-full-report.md
 
       - name: ZAP full API scan
         uses: zaproxy/action-api-scan@v0.10.0
@@ -73,14 +64,21 @@ jobs:
           artifact_name: zap-api-scan
           allow_issue_writing: false
 
-      - name: Set API scan issue body to report
+      - name: Publish combined scan reports
         if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          issue=$(gh issue list --state all --limit 1000 --json number,title --jq '.[] | select(.title == "ZAP API Scan Report") | .number' | head -n 1)
+          {
+            printf '# OWASP ZAP scan reports\n\n## Full scan\n\n'
+            cat zap-full-report.md
+            printf '\n\n## API scan\n\n'
+            cat report_md.md
+          } > zap-combined-report.md
+
+          issue=$(gh issue list --state all --limit 1000 --json number,title --jq '.[] | select(.title == "ZAP Scan Reports" or .title == "ZAP API Scan Report") | .number' | head -n 1)
           if [ -n "$issue" ]; then
-            gh issue edit "$issue" --body-file report_md.md
+            gh issue edit "$issue" --title "ZAP Scan Reports" --body-file zap-combined-report.md
           else
-            gh issue create --title "ZAP API Scan Report" --body-file report_md.md
+            gh issue create --title "ZAP Scan Reports" --body-file zap-combined-report.md
           fi
